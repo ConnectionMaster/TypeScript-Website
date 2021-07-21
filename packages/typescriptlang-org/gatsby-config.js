@@ -14,21 +14,17 @@ if (process.env.BOOTSTRAPPING) {
 
 require("./scripts/ensureDepsAreBuilt")
 
-const path = require.resolve("./../../watcher")
-require(path)
-
 // https://github.com/gatsbyjs/gatsby/issues/1457
 require("ts-node").register({ files: true })
 const { join } = require("path")
-
-// prettier-ignore
-const shiki = join(require.resolve(`gatsby-remark-shiki-twoslash`), "..", "..", "package.json")
 
 module.exports = {
   siteMetadata: {
     siteUrl: `https://www.typescriptlang.org/`,
   },
-
+  flags: {
+    DEV_SSR: false,
+  },
   plugins: [
     // SCSS provides inheritance for CSS and which pays the price for the dep
     {
@@ -148,10 +144,9 @@ module.exports = {
           },
           "gatsby-remark-autolink-headers",
           {
-            resolve: shiki,
+            resolve: "gatsby-remark-shiki-twoslash",
             options: {
-              // theme: "nord",
-              theme: require.resolve("./lib/themes/typescript-beta-light.json"),
+              theme: require("./lib/themes/typescript-beta-light.json"),
             },
           },
           "gatsby-remark-copy-linked-files",

@@ -2,6 +2,7 @@
 
 - **URLs:** [production](https://www.typescriptlang.org), [staging](http://www.staging-typescript.org/)
 - **Admin:** Prod: [Azure Portal](https://ms.portal.azure.com/#@microsoft.onmicrosoft.com/resource/subscriptions/99160d5b-9289-4b66-8074-ed268e739e8e/resourceGroups/Default-Web-WestUS/providers/Microsoft.Web/sites/TypeScript-1ebb3390-2634-4956-a955-eab987b7bb25/appServices), [Deploy logs](https://ms.portal.azure.com/#@microsoft.onmicrosoft.com/resource/subscriptions/99160d5b-9289-4b66-8074-ed268e739e8e/resourceGroups/Default-Web-WestUS/providers/Microsoft.Web/sites/TypeScript-1ebb3390-2634-4956-a955-eab987b7bb25/vstscd), [App Insights](https://ms.portal.azure.com/#@microsoft.onmicrosoft.com/resource/subscriptions/57bfeeed-c34a-4ffd-a06b-ccff27ac91b8/resourceGroups/typescriptlang-org/providers/microsoft.insights/components/TypeScriptLang-Prod-Ai/overview)
+- **Translations:** [microsoft/TypeScript-Website-Localizations](https://github.com/microsoft/TypeScript-Website-Localizations)
 
 ### Getting Started
 
@@ -17,6 +18,10 @@ code .
 
 # Then:
 yarn bootstrap
+# Optional, grab the translations:
+yarn docs-sync pull microsoft/TypeScript-Website-localizations#main 1
+
+# Now you can start up the website
 yarn start
 ```
 
@@ -46,7 +51,7 @@ You can find the build logs in [GitHub Actions](https://github.com/microsoft/Typ
 If you want to know _in-depth_ how this website works, there is an [hour long video covering the codebase, deployment and tooling on YouTube.](https://www.youtube.com/watch?v=HOvivt6B7hE). Otherwise there are some short guides:
 
 - [Converting Twoslash Code Samples](./docs/Converting%20Twoslash%20Code%20Samples.md)
-- [How i8n Works For Site Copy](./docs/How%20i8n%20Works%20For%20Site%20Copy.md)
+- [How i18n Works For Site Copy](./docs/How%20i18n%20Works%20For%20Site%20Copy.md)
 - [Updating the TypeScript Version](./docs/New%20TypeScript%20Version.md)
 - [Something Went Wrong](./docs/Something%20Went%20Wrong.md)
 
@@ -101,6 +106,16 @@ yarn workspace tsconfig-reference run lint resolveJson
 
 The docs for TypeScript. Originally ported over from [microsoft/TypeScript-Handbook](https://github.com/microsoft/TypeScript-Handbook/) then intermingled with [microsoft/TypeScript-New-Handbook](https://github.com/microsoft/TypeScript-New-Handbook), and finally updated for [Twoslash](http://www.staging-typescript.org/dev/twoslash/) and with new content.
 
+## JSON Schema
+
+It's a little odd, but the `tsconfig-reference` package creates the JSON schema for a TSConfig files:
+
+```sh
+yarn workspace tsconfig-reference build
+```
+
+Then you can find it at: [`packages/tsconfig-reference/scripts/schema/result/schema.json`](packages/tsconfig-reference/scripts/schema/result/schema.json).
+
 ## Playground Examples
 
 The code samples used in the Playground split across many languages.
@@ -123,7 +138,7 @@ A template for generating a new playground plugin which you can use via `npm ini
 
 ## Handbook Epub
 
-Generates an epub file from the handbook files. You can try downloading it at http://www.staging-typescript.org/assets/typescript-handbook-beta.epub
+Generates an epub file from the handbook files. You can try downloading it at https://www.typescriptlang.org/assets/typescript-handbook.epub
 
 ## Community Meta
 

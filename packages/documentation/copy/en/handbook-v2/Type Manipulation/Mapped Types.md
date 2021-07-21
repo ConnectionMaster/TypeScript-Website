@@ -3,7 +3,6 @@ title: Mapped Types
 layout: docs
 permalink: /docs/handbook/2/mapped-types.html
 oneline: "Generating types by re-using an existing type."
-beta: true
 ---
 
 When you don't want to repeat yourself, sometimes a type needs to be based on another type.
@@ -23,7 +22,7 @@ const conforms: OnlyBoolsAndHorses = {
 };
 ```
 
-A mapped type is a generic type which uses a union created [via a `keyof`](/docs/handbook/2/indexed-access-types.html) to iterate through the keys of one type to create another:
+A mapped type is a generic type which uses a union of `PropertyKey`s (frequently created [via a `keyof`](/docs/handbook/2/indexed-access-types.html)) to iterate through keys to create a type:
 
 ```ts twoslash
 type OptionsFlags<Type> = {
@@ -31,7 +30,7 @@ type OptionsFlags<Type> = {
 };
 ```
 
-In this example, `OptionFlags` will take all the properties from the type `Type` and change their values to be a boolean.
+In this example, `OptionsFlags` will take all the properties from the type `Type` and change their values to be a boolean.
 
 ```ts twoslash
 type OptionsFlags<Type> = {
@@ -49,9 +48,12 @@ type FeatureOptions = OptionsFlags<FeatureFlags>;
 
 ### Mapping Modifiers
 
-There are two additional modifiers which can be applied during mapping: `readonly` and `?` which affect mutability and optionality respectively. Both of these modifiers support a prefix of `-` or `+` with `+` being the default.
+There are two additional modifiers which can be applied during mapping: `readonly` and `?` which affect mutability and optionality respectively.
+
+You can remove or add these modifiers by prefixing with `-` or `+`. If you don't add a prefix, then `+` is assumed.
 
 ```ts twoslash
+// Removes 'readonly' attributes from a type's properties
 type CreateMutable<Type> = {
   -readonly [Property in keyof Type]: Type[Property];
 };
@@ -66,6 +68,7 @@ type UnlockedAccount = CreateMutable<LockedAccount>;
 ```
 
 ```ts twoslash
+// Removes 'optional' attributes from a type's properties
 type Concrete<Type> = {
   [Property in keyof Type]-?: Type[Property];
 };
@@ -111,8 +114,8 @@ You can filter out keys by producing `never` via a conditional type:
 
 ```ts twoslash
 // Remove the 'kind' property
-type RemoveKindField<T> = {
-    [K in keyof T as Exclude<K, "kind">]: T[K]
+type RemoveKindField<Type> = {
+    [Property in keyof Type as Exclude<Property, "kind">]: Type[Property]
 };
 
 interface Circle {
@@ -128,7 +131,7 @@ type KindlessCircle = RemoveKindField<Circle>;
 
 Mapped types work well with other features in this type manipulation section, for example here is [a mapped type using a conditional type](/docs/handbook/2/conditional-types.html) which returns either a `true` or `false` depending on whether an object has the property `pii` set to the literal `true`:
 
-```ts
+```ts twoslash
 type ExtractPII<Type> = {
   [Property in keyof Type]: Type[Property] extends { pii: true } ? true : false;
 };
@@ -138,5 +141,6 @@ type DBFields = {
   name: { type: string; pii: true };
 };
 
-type ObjectsNeedingGDPRDeletion = CreateMutable<DBFields>;
+type ObjectsNeedingGDPRDeletion = ExtractPII<DBFields>;
+//   ^?
 ```

@@ -16,7 +16,7 @@ Websites are made up of HTML and/or XML documents. These documents are static, t
 
 TypeScript is a typed superset of JavaScript, and it ships type definitions for the DOM API. These definitions are readily available in any default TypeScript project. Of the 20,000+ lines of definitions in _lib.dom.d.ts_, one stands out among the rest: `HTMLElement` . This type is the backbone for DOM manipulation with TypeScript.
 
-> You can explore the source code for the [DOM type definitions](https://github.com/microsoft/TypeScript/blob/master/lib/lib.dom.d.ts)
+> You can explore the source code for the [DOM type definitions](https://github.com/microsoft/TypeScript/blob/main/lib/lib.dom.d.ts)
 
 ## Basic Example
 
@@ -32,7 +32,7 @@ Given a simplified _index.html_ file:
       </body>
     </html>
 
-Lets explore a TypeScript script that adds a `<p>Hello, World</p>` element to the `#app` element.
+Lets explore a TypeScript script that adds a `<p>Hello, World!</p>` element to the `#app` element.
 
 ```ts
 // 1. Select the div element using the id property

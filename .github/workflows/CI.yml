@@ -17,22 +17,24 @@ jobs:
         with:
           path: |
             packages/typescriptlang-org/.cache
+            packages/.cache
             **/node_modules
           key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
             ${{ runner.os }}-yarn-
 
-      # Get dependencies for building the ebooks
-      - run: sudo apt-get update
-      - run: sudo apt install calibre
+      - uses: microsoft/playwright-github-action@v1
 
-      # Install, should be absically instant if cached
+      # Install, should be basically instant if cached
       - run: yarn install
         env:
           YARN_CHECKSUM_BEHAVIOR: ignore
 
       # Verify dependencies are hooked up right
       - run: node test/verifyPackageVersions.js
+
+      # Grab localizations
+      - run: yarn docs-sync pull microsoft/TypeScript-Website-localizations#main 1
 
       # Build the packages
       - run: yarn bootstrap
@@ -56,9 +58,6 @@ jobs:
         run: |
           cd ..
           npm init typescript-playground-plugin playground-my-plugin
-
-      # Verify localizations are hooked up right
-      - run: node packages/typescriptlang-org/scripts/validatePathsInLocalizedFolders.js
 
   windows:
     runs-on: windows-latest

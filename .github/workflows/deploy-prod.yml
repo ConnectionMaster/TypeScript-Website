@@ -13,20 +13,34 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - uses: actions/setup-node@v1
+        with:
+          node-version: "13.x"
 
-      # For epub -> PDF conversion
-      - run: sudo apt-get update
-      - run: sudo apt install calibre
+      - uses: microsoft/playwright-github-action@v1
 
-      # Build v2
-      - name: Build website v2
+      # Builds the modules, and boostraps the other modules
+      - name: Build website
         run: |
           yarn install
+          yarn docs-sync pull microsoft/TypeScript-Website-localizations#main 1
           yarn bootstrap
+          yarn workspace typescriptlang-org setup-playground-cache-bust
           yarn build
-          yarn build-site
-          cp -r packages/typescriptlang-org/public site
         env:
+          YARN_CHECKSUM_BEHAVIOR: ignore
+
+      # Update the site plan, scoped out on its own because it gets access to secrets
+      - run: node packages/typescriptlang-org/scripts/getTypeScriptReleasePlan.js
+        env:
+          GITHUB_BOT_TOKEN: ${{ secrets.GITHUB_BOT_TOKEN }}
+          TEAMS_WEB_BOT_INCOMING_URL: ${{ secrets.TEAMS_WEB_BOT_INCOMING_URL }}
+
+      # Builds the site
+      -  name: Makes the site
+         run: |
+           yarn build-site
+           cp -r packages/typescriptlang-org/public site
+         env:
           YARN_CHECKSUM_BEHAVIOR: ignore
 
       # Deploy to the prod appservice
@@ -43,11 +57,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_BOT_TOKEN }}
           APP_INSIGHTS_API_KEY: ${{ secrets.APP_INSIGHTS_API_KEY }}
           APP_INSIGHTS_ID: ${{ secrets.APP_INSIGHTS_ID }}
-
-      # Update all the translation issues on a nightly basis
-      - run: node packages/typescriptlang-org/scripts/updateGitHubTranslationIssues.ts
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_BOT_TOKEN }}
 
       - name: Send a message to Microsoft Teams
         if: ${{ failure() }}

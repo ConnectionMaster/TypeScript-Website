@@ -13,11 +13,13 @@ import { headCopy } from "../copy/en/head-seo"
 import { playCopy } from "../copy/en/playground"
 
 import { Intl } from "../components/Intl"
+import "reflect-metadata"
 
 import playgroundReleases from "../../../sandbox/src/releases.json"
+import { getPlaygroundUrls } from "../lib/playgroundURLs"
 
 // This gets set by the playground
-declare const playground: ReturnType<typeof import("typescript-playground").setupPlayground>
+declare const playground: ReturnType<typeof import("@typescript/playground").setupPlayground>
 
 type Props = {
   pageContext: {
@@ -59,7 +61,7 @@ const Play: React.FC<Props> = (props) => {
     window.react = React
     // @ts-ignore - for React-based plugins
     window.reactDOM = ReactDOM
-    // @ts-ignore - so that plugins etc can use i8n
+    // @ts-ignore - so that plugins etc can use i18n
     window.i = i
 
     const getLoaderScript = document.createElement('script');
@@ -82,13 +84,15 @@ const Play: React.FC<Props> = (props) => {
         tsVersionParam = tsVersionParam.replace("-insiders.", "-dev.")
       }
 
-      const latestRelease = [...playgroundReleases.versions].sort().pop()
+      const latestRelease = [...playgroundReleases.versions].sort().pop()!
       const tsVersion = tsVersionParam || latestRelease
 
       // Because we can reach to localhost ports from the site, it's possible for the locally built compiler to 
       // be hosted and to power the editor with a bit of elbow grease.
       const useLocalCompiler = tsVersion === "dev"
-      const urlForMonaco = useLocalCompiler ? "http://localhost:5615/dev/vs" : `https://typescript.azureedge.net/cdn/${tsVersion}/monaco/min/vs`
+      const devIsh = ["pr", "dev"]
+      const version = devIsh.find(d => tsVersion.includes(d)) ? "dev" : "min"
+      const urlForMonaco = useLocalCompiler ? "http://localhost:5615/dev/vs" : `https://typescript.azureedge.net/cdn/${tsVersion}/monaco/${version}/vs`
 
       // Make a quick HEAD call for the main monaco editor for this version of TS, if it
       // bails then give a useful error message and bail.
@@ -104,26 +108,33 @@ const Play: React.FC<Props> = (props) => {
         return
       }
 
+      // Allow prod/staging builds to set a custom commit prefix to bust caches
+      const {sandboxRoot, playgroundRoot} = getPlaygroundUrls()
+      
       // @ts-ignore
       const re: any = global.require
       re.config({
         paths: {
           vs: urlForMonaco,
-          "typescript-sandbox": withPrefix('/js/sandbox'),
-          "typescript-playground": withPrefix('/js/playground'),
-          "unpkg": "https://unpkg.com/",
-          "local": "http://localhost:5000"
+          "typescript-sandbox": sandboxRoot,
+          "typescript-playground": playgroundRoot,
+          "unpkg": "https://unpkg.com",
+          "local": "http://localhost:5000",
         },
         ignoreDuplicateModules: ["vs/editor/editor.main"],
         catchError: true,
         onError: function (err) {
-          document.getElementById("loading-message")!.innerText = "Cannot load the Playground in this browser"
-          console.error("Error setting up monaco/sandbox/playground from the JS, this is likely that you're using a browser which monaco doesn't support.")
+          if (document.getElementById("loading-message")) {
+            document.getElementById("loading-message")!.innerText = "Cannot load the Playground in this browser"
+            console.error("Error setting up monaco/sandbox/playground from the JS, this is likely that you're using a browser which monaco doesn't support.")
+          } else {
+            console.error("Caught an error which is likely happening during initializing a playground plugin:")
+          }
           console.error(err)
         }
       });
 
-      re(["vs/editor/editor.main", "vs/language/typescript/tsWorker", "typescript-sandbox/index", "typescript-playground/index"], async (main: typeof import("monaco-editor"), tsWorker: any, sandbox: typeof import("typescript-sandbox"), playground: typeof import("typescript-playground")) => {
+      re(["vs/editor/editor.main", "vs/language/typescript/tsWorker", "typescript-sandbox/index", "typescript-playground/index"], async (main: typeof import("monaco-editor"), tsWorker: any, sandbox: typeof import("@typescript/sandbox"), playground: typeof import("@typescript/playground")) => {
         // Importing "vs/language/typescript/tsWorker" will set ts as a global
         const ts = (global as any).ts
         const isOK = main && ts && sandbox && playground
@@ -146,9 +157,13 @@ const Play: React.FC<Props> = (props) => {
           text: localStorage.getItem('sandbox-history') || i("play_default_code_sample"),
           compilerOptions: {},
           domID: "monaco-editor-embed",
-          useJavaScript: !!params.get("useJavaScript"),
+          filetype: (!!params.get("useJavaScript") ? "js" : params.get("filetype") || "ts") as any,
           acquireTypes: !localStorage.getItem("disable-ata"),
-          supportTwoslashCompilerOptions: true
+          supportTwoslashCompilerOptions: true,
+          monacoSettings: {
+            fontFamily: "var(--code-font)",
+            fontLigatures: true
+          }
         }, main, ts)
 
         const playgroundConfig = {
@@ -193,6 +208,7 @@ const Play: React.FC<Props> = (props) => {
                     <span className="select-label">Lang</span>
                     <select id="language-selector">
                       <option>TypeScript</option>
+                      <option>TypeScript Definitions</option>
                       <option>JavaScript</option>
                     </select>
                     <span className="compiler-flag-blurb">{i("play_config_language_blurb")}</span>
@@ -207,7 +223,7 @@ const Play: React.FC<Props> = (props) => {
             <a href="#" id="examples-button" className="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="menu" aria-expanded="false" aria-controls="examples">{i("play_subnav_examples")} <span className="caret"></span></a>
             <ul className="examples-dropdown" id="examples" aria-labelledby="examples-button">
               <button className="examples-close" aria-label="Close dropdown" role="button">{i("play_subnav_examples_close")}</button>
-              <RenderExamples defaultSection="JavaScript" sections={["JavaScript", "TypeScript"]} examples={props.pageContext.examplesTOC} locale={props.pageContext.lang} />
+              <RenderExamples defaultSection="TypeScript" sections={["JavaScript", "TypeScript"]} examples={props.pageContext.examplesTOC} locale={props.pageContext.lang} />
             </ul>
           </li>
 
@@ -215,7 +231,7 @@ const Play: React.FC<Props> = (props) => {
             <a href="#" id="whatisnew-button" className="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="menu" aria-expanded="false" aria-controls="whatisnew">{i("play_subnav_whatsnew")} <span className="caret"></span></a>
             <ul className="examples-dropdown" id="whatisnew" aria-labelledby="whatisnew-button">
               <button role="button" aria-label="Close dropdown" className="examples-close">{i("play_subnav_examples_close")}</button>
-              <RenderExamples defaultSection="4.1" sections={["4.1", "4.0", "3.8", "3.7", "Playground"]} examples={props.pageContext.examplesTOC} locale={props.pageContext.lang} />
+              <RenderExamples defaultSection="4.4" sections={["4.4", "4.3", "4.2", "4.1", "4.0", "3.8", "3.7", "Playground"]} examples={props.pageContext.examplesTOC} locale={props.pageContext.lang} />
             </ul>
           </li>
         </ul>

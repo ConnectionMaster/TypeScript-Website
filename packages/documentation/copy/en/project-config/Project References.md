@@ -17,12 +17,15 @@ We're also introducing a new mode for `tsc`, the `--build` flag, that works hand
 Let's look at a fairly normal program and see how project references can help us better organize it.
 Imagine you have a project with two modules, `converter` and `units`, and a corresponding test file for each:
 
-```shell
-/src/converter.ts
-/src/units.ts
-/test/converter-tests.ts
-/test/units-tests.ts
-/tsconfig.json
+```
+/
+├── src/
+│   ├── converter.ts
+│   └── units.ts
+├── test/
+│   ├── converter-tests.ts
+│   └── units-tests.ts
+└── tsconfig.json
 ```
 
 The test files import the implementation files and do some testing:
@@ -100,7 +103,7 @@ You can also enable prepending the output of a dependency using the `prepend` op
 ```
 
 Prepending a project will include the project's output above the output of the current project.
-This works for both `.js` files and `.d.ts` files, and source map files will also be emitted correctly.
+All output files (`.js`, `.d.ts`, `.js.map`, `.d.ts.map`) will be emitted correctly.
 
 `tsc` will only ever use existing files on disk to do this process, so it's possible to create a project where a correct output file can't be generated because some project's output would be present more than once in the resulting file.
 For example:

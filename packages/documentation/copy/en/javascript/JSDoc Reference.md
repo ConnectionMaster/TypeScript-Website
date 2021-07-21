@@ -11,16 +11,17 @@ when using JSDoc annotations to provide type information in JavaScript files.
 
 Note any tags which are not explicitly listed below (such as `@async`) are not yet supported.
 
-- `@type`
-- `@param` (or `@arg` or `@argument`)
-- `@returns` (or `@return`)
-- `@typedef`
-- `@callback`
-- `@template`
-- `@class` (or `@constructor`)
-- `@this`
-- `@extends` (or `@augments`)
-- `@enum`
+- [`@type`](#type)
+- [`@param`](#param-and-returns) (or [`@arg`](#param-and-returns) or [`@argument`](#param-and-returns))
+- [`@returns`](#param-and-returns) (or [`@return`](#param-and-returns))
+- [`@typedef`](#typedef-callback-and-param)
+- [`@callback`](#typedef-callback-and-param)
+- [`@template`](#template)
+- [`@class`](#constructor) (or [`@constructor`](#constructor))
+- [`@this`](#this)
+- [`@extends`](#extends) (or [`@augments`](#extends))
+- [`@enum`](#enum)
+- [`@deprecated`](#deprecated-comments)
 
 #### `class` extensions
 
@@ -164,7 +165,7 @@ export type Pet = {
 
 // @filename: main.js
 /**
- * @param p { import("./types").Pet }
+ * @param { import("./types").Pet } p
  */
 function walk(p) {
   console.log(`Walking ${p.name}...`);
@@ -504,6 +505,20 @@ const MathFuncs = {
 };
 
 MathFuncs.add1;
+```
+
+## `@deprecated` Comments
+
+When a function, method, or property is deprecated you can let users know by marking it with a `/** @deprecated */` JSDoc comment. That information is surfaced in completion lists and as a suggestion diagnostic that editors can handle specially. In an editor like VS Code, deprecated values are typically displayed in a strike-through style ~~like this~~.
+
+```js
+// @noErrors
+/** @deprecated */
+const apiV1 = {};
+const apiV2 = {};
+
+apiV;
+// ^|
 ```
 
 ## More examples

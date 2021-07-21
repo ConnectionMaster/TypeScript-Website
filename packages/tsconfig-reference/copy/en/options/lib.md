@@ -54,11 +54,9 @@ You may want to change these for a few reasons:
 | `ES2018.Promise`          |
 | `ES2018.RegExp`           |
 | `ES2019.Array`            |
-| `ES2019.Full`             |
 | `ES2019.Object`           |
 | `ES2019.String`           |
 | `ES2019.Symbol`           |
-| `ES2020.Full`             |
 | `ES2020.String`           |
 | `ES2020.Symbol.wellknown` |
 | `ESNext.AsyncIterable`    |
@@ -66,4 +64,4 @@ You may want to change these for a few reasons:
 | `ESNext.Intl`             |
 | `ESNext.Symbol`           |
 
-This list may be out of date, you can see the full list in the [TypeScript source code](https://github.com/microsoft/TypeScript/tree/master/lib).
+This list may be out of date, you can see the full list in the [TypeScript source code](https://github.com/microsoft/TypeScript/tree/main/lib).

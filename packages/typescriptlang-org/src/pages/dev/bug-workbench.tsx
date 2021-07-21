@@ -20,6 +20,7 @@ import { workbenchMarkdownPlugin } from "../../components/workbench/plugins/mark
 import { workbenchReferencePlugin } from "../../components/workbench/plugins/docs"
 import { createDefaultMapFromCDN } from "@typescript/vfs"
 import { twoslasher, TwoSlashReturn } from "@typescript/twoslash"
+import { getPlaygroundUrls } from "../../lib/playgroundURLs";
 
 type TwoSlashReturns = import("@typescript/twoslash").TwoSlashReturn
 
@@ -43,26 +44,34 @@ const Play: React.FC<Props> = (props) => {
     const getLoaderScript = document.createElement('script');
     getLoaderScript.src = withPrefix("/js/vs.loader.js");
     getLoaderScript.async = true;
-    getLoaderScript.onload = () => {
+    getLoaderScript.onload = async () => {
       const params = new URLSearchParams(location.search)
-      // nothing || Nightly -> next || original ts param
-      const supportedVersion = !params.get("ts") ? undefined : params.get("ts") === "Nightly" ? "next" : params.get("ts")
-      const tsVersion = supportedVersion || "next"
 
+      let tsVersionParam = params.get("ts")
+      // handle the nightly lookup 
+      if (!tsVersionParam || tsVersionParam && tsVersionParam === "Nightly" || tsVersionParam === "next") {
+        // Avoids the CDN to doubly skip caching
+        const nightlyLookup = await fetch("https://tswebinfra.blob.core.windows.net/indexes/next.json", { cache: "no-cache" })
+        const nightlyJSON = await nightlyLookup.json()
+        tsVersionParam = nightlyJSON.version
+      }
+      // Allow prod/staging builds to set a custom commit prefix to bust caches
+      const {sandboxRoot, playgroundRoot} = getPlaygroundUrls()
+            
       // @ts-ignore
       const re: any = global.require
       re.config({
         paths: {
-          vs: `https://typescript.azureedge.net/cdn/${tsVersion}/monaco/min/vs`,
-          "typescript-sandbox": withPrefix('/js/sandbox'),
-          "typescript-playground": withPrefix('/js/playground'),
+          vs: `https://typescript.azureedge.net/cdn/${tsVersionParam}/monaco/min/vs`,
+          "typescript-sandbox": sandboxRoot,
+          "typescript-playground": playgroundRoot,
           "unpkg": "https://unpkg.com/",
           "local": "http://localhost:5000"
         },
         ignoreDuplicateModules: ["vs/editor/editor.main"],
       });
 
-      re(["vs/editor/editor.main", "vs/language/typescript/tsWorker", "typescript-sandbox/index", "typescript-playground/index"], async (main: typeof import("monaco-editor"), tsWorker: any, sandbox: typeof import("typescript-sandbox"), playground: typeof import("typescript-playground")) => {
+      re(["vs/editor/editor.main", "vs/language/typescript/tsWorker", "typescript-sandbox/index", "typescript-playground/index"], async (main: typeof import("monaco-editor"), tsWorker: any, sandbox: typeof import("@typescript/sandbox"), playground: typeof import("@typescript/playground")) => {
         // Importing "vs/language/typescript/tsWorker" will set ts as a global
         const ts = (global as any).ts
         const isOK = main && ts && sandbox && playground
@@ -84,9 +93,13 @@ const Play: React.FC<Props> = (props) => {
           text: localStorage.getItem('sandbox-history') || i("play_default_code_sample"),
           compilerOptions: {},
           domID: "monaco-editor-embed",
-          useJavaScript: !!params.get("useJavaScript"),
+          filetype: "ts",
           acquireTypes: !localStorage.getItem("disable-ata"),
-          supportTwoslashCompilerOptions: true
+          supportTwoslashCompilerOptions: true,
+          monacoSettings: {
+            fontFamily: "var(--code-font)",
+            fontLigatures: true
+          }
         }, main, ts)
 
         const playgroundConfig = {
@@ -107,7 +120,7 @@ const Play: React.FC<Props> = (props) => {
         const utils = playgroundEnv.createUtils(sandbox, React)
 
         const updateDTSEnv = (opts) => {
-          createDefaultMapFromCDN(opts, tsVersion, true, ts, sandboxEnv.lzstring as any).then((defaultMap) => {
+          createDefaultMapFromCDN(opts, tsVersionParam!, true, ts, sandboxEnv.lzstring as any).then((defaultMap) => {
             dtsMap = defaultMap
             runTwoslash()
           })

@@ -14,17 +14,22 @@ type CompilerOptions = import("typescript").CompilerOptions
 export const extractTwoSlashComplierOptions = (ts: TS) => {
   let optMap = new Map<string, any>()
 
-  // @ts-ignore - optionDeclarations is not public API
-  for (const opt of ts.optionDeclarations) {
-    optMap.set(opt.name.toLowerCase(), opt)
+  if (!("optionDeclarations" in ts)) {
+    console.error("Could not get compiler options from ts.optionDeclarations - skipping twoslash support.")
+  } else {
+    // @ts-ignore - optionDeclarations is not public API
+    for (const opt of ts.optionDeclarations) {
+      optMap.set(opt.name.toLowerCase(), opt)
+    }
   }
 
   return (code: string) => {
     const codeLines = code.split("\n")
     const options = {} as any
 
-    codeLines.forEach(line => {
+    codeLines.forEach(_line => {
       let match
+      const line = _line.trim()
       if ((match = booleanConfigRegexp.exec(line))) {
         if (optMap.has(match[1].toLowerCase())) {
           options[match[1]] = true
@@ -42,6 +47,7 @@ export const extractTwoSlashComplierOptions = (ts: TS) => {
 
 function setOption(name: string, value: string, opts: CompilerOptions, optMap: Map<string, any>) {
   const opt = optMap.get(name.toLowerCase())
+
   if (!opt) return
   switch (opt.type) {
     case "number":
@@ -105,14 +111,14 @@ export const twoslashCompletions = (ts: TS, monaco: typeof import("monaco-editor
   }
 
   const word = words[1]
-  if (!word.startsWith("-")) {
+  if (word.startsWith("-")) {
     return {
       suggestions: [
         {
           label: "---cut---",
           kind: 14,
           detail: "Twoslash split output",
-          insertText: "---cut---",
+          insertText: "---cut---".replace(word, ""),
         } as any,
       ],
     }

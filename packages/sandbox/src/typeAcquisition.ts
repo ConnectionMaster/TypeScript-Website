@@ -1,4 +1,4 @@
-import { PlaygroundConfig } from "./"
+import { SandboxConfig } from "./"
 import lzstring from "./vendor/lzstring.min"
 
 const globalishObj: any = typeof globalThis !== "undefined" ? globalThis : window || {}
@@ -16,8 +16,14 @@ const moduleJSONURL = (name: string) =>
   // prettier-ignore
   `https://ofcncog2cu-dsn.algolia.net/1/indexes/npm-search/${encodeURIComponent(name)}?attributes=types&x-algolia-agent=Algolia%20for%20vanilla%20JavaScript%20(lite)%203.27.1&x-algolia-application-id=OFCNCOG2CU&x-algolia-api-key=f54e21fa3a2a0160595bb058179bfb1e`
 
-const unpkgURL = (name: string, path: string) =>
-  `https://www.unpkg.com/${encodeURIComponent(name)}/${encodeURIComponent(path)}`
+const unpkgURL = (name: string, path: string) => {
+  if (!name) {
+    const actualName = path.substring(0, path.indexOf("/"))
+    const actualPath = path.substring(path.indexOf("/") + 1)
+    return `https://www.unpkg.com/${encodeURIComponent(actualName)}/${encodeURIComponent(actualPath)}`
+  }
+  return `https://www.unpkg.com/${encodeURIComponent(name)}/${encodeURIComponent(path)}`
+}
 
 const packageJSONURL = (name: string) => unpkgURL(name, "package.json")
 
@@ -35,7 +41,7 @@ const parseFileForModuleReferences = (sourceCode: string) => {
   // this handle ths 'from' imports  https://regex101.com/r/hdEpzO/4
   const es6Pattern = /(import|export)((?!from)(?!require)(.|\n))*?(from|require\()\s?('|")(.*)('|")\)?;?$/gm
   // https://regex101.com/r/hdEpzO/8
-  const es6ImportOnly = /import\s+?\(?('|")(.*)('|")\)?;?/gm;
+  const es6ImportOnly = /import\s+?\(?('|")(.*)('|")\)?;?/gm
 
   const foundModules = new Set<string>()
   var match
@@ -62,7 +68,6 @@ const mapModuleNameToModule = (name: string) => {
   const builtInNodeMods = [
     "assert",
     "async_hooks",
-    "base",
     "buffer",
     "child_process",
     "cluster",
@@ -74,11 +79,10 @@ const mapModuleNameToModule = (name: string) => {
     "domain",
     "events",
     "fs",
-    "globals",
+    "fs/promises",
     "http",
     "http2",
     "https",
-    "index",
     "inspector",
     "module",
     "net",
@@ -92,6 +96,7 @@ const mapModuleNameToModule = (name: string) => {
     "repl",
     "stream",
     "string_decoder",
+    "sys",
     "timers",
     "tls",
     "trace_events",
@@ -100,6 +105,7 @@ const mapModuleNameToModule = (name: string) => {
     "util",
     "v8",
     "vm",
+    "wasi",
     "worker_threads",
     "zlib",
   ]
@@ -110,7 +116,7 @@ const mapModuleNameToModule = (name: string) => {
   return name
 }
 
-//** A really dumb version of path.resolve */
+//** A really simple version of path.resolve */
 const mapRelativePath = (moduleDeclaration: string, currentPath: string) => {
   // https://stackoverflow.com/questions/14780350/convert-relative-path-to-absolute-using-javascript
   function absolute(base: string, relative: string) {
@@ -150,23 +156,41 @@ const convertToModuleReferenceID = (outerModule: string, moduleDeclaration: stri
 const addModuleToRuntime = async (mod: string, path: string, config: ATAConfig) => {
   const isDeno = path && path.indexOf("https://") === 0
 
-  const dtsFileURL = isDeno ? path : unpkgURL(mod, path)
+  let actualMod = mod
+  let actualPath = path
 
-  const content = await getCachedDTSString(config, dtsFileURL)
+  if (!mod) {
+    actualMod = path.substring(0, path.indexOf("/"))
+    actualPath = path.substring(path.indexOf("/") + 1)
+  }
+
+  const dtsFileURL = isDeno ? path : unpkgURL(actualMod, actualPath)
+
+  let content = await getCachedDTSString(config, dtsFileURL)
   if (!content) {
-    return errorMsg(`Could not get root d.ts file for the module '${mod}' at ${path}`, {}, config)
+    const isDeno = actualPath && actualPath.indexOf("https://") === 0
+    const indexPath = `${actualPath.replace(".d.ts", "")}/index.d.ts`
+
+    const dtsFileURL = isDeno ? actualPath : unpkgURL(actualMod, indexPath)
+    content = await getCachedDTSString(config, dtsFileURL)
+
+    if (!content) {
+      return errorMsg(`Could not get root d.ts file for the module '${actualMod}' at ${actualPath}`, {}, config)
+    }
+
+    if (!isDeno) {
+      actualPath = indexPath
+    }
   }
 
   // Now look and grab dependent modules where you need the
-  await getDependenciesForModule(content, mod, path, config)
+  await getDependenciesForModule(content, actualMod, actualPath, config)
 
   if (isDeno) {
-    const wrapped = `declare module "${path}" { ${content} }`
-    config.addLibraryToRuntime(wrapped, path)
+    const wrapped = `declare module "${actualPath}" { ${content} }`
+    config.addLibraryToRuntime(wrapped, actualPath)
   } else {
-    const typelessModule = mod.split("@types/").slice(-1)
-    const wrapped = `declare module "${typelessModule}" { ${content} }`
-    config.addLibraryToRuntime(wrapped, `node_modules/${mod}/${path}`)
+    config.addLibraryToRuntime(content, `file:///node_modules/${actualMod}/${actualPath}`)
   }
 }
 
@@ -212,7 +236,10 @@ const getModuleAndRootDefTypePath = async (packageName: string, config: ATAConfi
       return errorMsg(`Could not get Package JSON for the module '${packageName}'`, response, config)
     }
 
-    config.addLibraryToRuntime(JSON.stringify(responseJSON, null, "  "), `node_modules/${packageName}/package.json`)
+    config.addLibraryToRuntime(
+      JSON.stringify(responseJSON, null, "  "),
+      `file:///node_modules/${packageName}/package.json`
+    )
 
     // Get the path of the root d.ts file
 
@@ -289,7 +316,7 @@ const getReferenceDependencies = async (sourceCode: string, mod: string, path: s
           }
 
           await getDependenciesForModule(dtsReferenceResponseText, mod, newPath, config)
-          const representationalPath = `node_modules/${mod}/${newPath}`
+          const representationalPath = `file:///node_modules/${mod}/${newPath}`
           config.addLibraryToRuntime(dtsReferenceResponseText, representationalPath)
         }
       }
@@ -301,7 +328,7 @@ interface ATAConfig {
   sourceCode: string
   addLibraryToRuntime: AddLibToRuntimeFunc
   fetcher: typeof fetch
-  logger: PlaygroundConfig["logger"]
+  logger: SandboxConfig["logger"]
 }
 
 /**
@@ -311,7 +338,7 @@ export const detectNewImportsToAcquireTypeFor = async (
   sourceCode: string,
   userAddLibraryToRuntime: AddLibToRuntimeFunc,
   fetcher = fetch,
-  playgroundConfig: PlaygroundConfig
+  playgroundConfig: SandboxConfig
 ) => {
   // Wrap the runtime func with our own side-effect for visibility
   const addLibraryToRuntime = (code: string, path: string) => {
